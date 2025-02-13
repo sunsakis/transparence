@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract TransparentPayments is ReentrancyGuard, Ownable {
+contract TransparentPayments {
     // USDC token contract
     IERC20 public immutable usdc;
 
@@ -47,14 +45,11 @@ contract TransparentPayments is ReentrancyGuard, Ownable {
         uint256 _amount,
         string memory _category,
         string memory _description
-    ) external nonReentrant {
+    ) external {
         require(_to != address(0), "Invalid recipient address");
         require(_amount > 0, "Payment amount must be greater than 0");
         
-        // Transfer USDC from sender to recipient
-        require(usdc.transferFrom(msg.sender, _to, _amount), "USDC transfer failed");
-
-        // Create new payment
+        // Create new payment first (Checks-Effects pattern)
         uint256 paymentId = payments.length;
         payments.push(Payment({
             from: msg.sender,
@@ -68,6 +63,9 @@ contract TransparentPayments is ReentrancyGuard, Ownable {
         // Update payment indices
         paymentsByAddress[msg.sender].push(paymentId);
         paymentsByAddress[_to].push(paymentId);
+
+        // External call last (Interactions pattern)
+        require(usdc.transferFrom(msg.sender, _to, _amount), "USDC transfer failed");
 
         // Emit event
         emit PaymentMade(
